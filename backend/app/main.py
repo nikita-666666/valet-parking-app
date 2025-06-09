@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.api.v1.api_router import api_router
 from app.core.config import settings
 from app.middleware.logging import RequestLoggingMiddleware
+import os
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -45,11 +47,11 @@ def custom_origin_check(origin: str) -> bool:
         return True
     return is_local_network_origin(origin)
 
-# Используем allow_origin_regex для поддержки локальных IP
+# Используем allow_origin_regex для поддержки локальных IP и Railway
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|.*\.railway\.app|.*\.up\.railway\.app)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],        # Разрешаем все методы
     allow_headers=["*"],        # Разрешаем все заголовки
@@ -70,4 +72,9 @@ async def health_check():
         "message": "API is working",
         "cors_enabled": True,
         "api_version": "v1"
-    } 
+    }
+
+# Обслуживание статических файлов React (для Railway)
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static/static"), name="static")
+    app.mount("/", StaticFiles(directory="static", html=True), name="frontend") 
