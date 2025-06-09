@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend build
+frontend/build/
+frontend/.env*
+
+# Uploads
+backend/uploads/valet_photos/*.jpg
+backend/uploads/valet_photos/*.png
+backend/uploads/valet_photos/*.jpeg
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files  
+.DS_Store
+Thumbs.db
+
+# Test files
+test*.html
+mobile-*.html
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+
+# Build files
+dist/
+build/ 

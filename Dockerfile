@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем и устанавливаем Python зависимости с кэшированием
-COPY backend/requirements.txt ./
+# Копируем и устанавливаем минимальные Python зависимости
+COPY backend/requirements-minimal.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
