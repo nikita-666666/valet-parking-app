@@ -1,42 +1,30 @@
-# Multi-stage build для Railway
-FROM node:18-alpine AS frontend-build
-
-# Копируем frontend
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
-# Backend stage
+# Используем официальный Python образ
 FROM python:3.11-slim
 
-# Установка системных зависимостей
-RUN apt-get update && apt-get install -y \
+# Установка только необходимых зависимостей одной командой
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get purge -y --auto-remove
 
 # Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем backend requirements
+# Копируем и устанавливаем Python зависимости с кэшированием
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Копируем backend код
 COPY backend/ ./
 
-# Копируем собранный frontend из первого stage
-COPY --from=frontend-build /app/frontend/build ./static
+# Создаем простую статическую папку с базовым HTML
+RUN mkdir -p static uploads && \
+    echo '<!DOCTYPE html><html><head><title>Valet Parking System</title><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body><h1>🚗 Valet Parking System</h1><p>API работает! <a href="/docs">Документация API</a></p></body></html>' > static/index.html
 
-# Создаем папку для загрузок
-RUN mkdir -p uploads
-
-# Переменные окружения для Railway
+# Переменные окружения
 ENV PORT=8000
 ENV HOST=0.0.0.0
-ENV DATABASE_URL=${DATABASE_URL}
-ENV SECRET_KEY=${SECRET_KEY}
 
 # Экспонируем порт
 EXPOSE 8000
