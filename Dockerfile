@@ -1,6 +1,3 @@
-<<<<<<< HEAD
- 
-=======
 # Используем официальный Python образ
 FROM python:3.11-slim
 
@@ -14,16 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Копируем и устанавливаем минимальные Python зависимости
-COPY backend/requirements-minimal.txt ./requirements.txt
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Копируем backend код
 COPY backend/ ./
 
-# Создаем простую статическую папку с базовым HTML
-RUN mkdir -p static uploads && \
-    echo '<!DOCTYPE html><html><head><title>Valet Parking System</title><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body><h1>🚗 Valet Parking System</h1><p>API работает! <a href="/docs">Документация API</a></p></body></html>' > static/index.html
+# Создаем директории для статики и загрузок
+RUN mkdir -p static uploads
 
 # Переменные окружения
 ENV PORT=8000
@@ -32,6 +28,8 @@ ENV HOST=0.0.0.0
 # Экспонируем порт
 EXPOSE 8000
 
-# Команда запуска
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
->>>>>>> 2ee47634a384d8c43c3918a6b9762f7b0e504eb6
+# Команда запуска с ожиданием базы данных
+COPY backend/wait-for-it.sh /wait-for-it.sh
+RUN chmod +x /wait-for-it.sh
+
+CMD ["/wait-for-it.sh", "mysql:3306", "--", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

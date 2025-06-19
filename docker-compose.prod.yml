@@ -6,19 +6,22 @@ services:
     container_name: valet_mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: u2385522_pp_database
-      MYSQL_USER: u2385522_pp_db
-      MYSQL_PASSWORD: aF2fN9rV7fbP8mG5
-      MYSQL_ROOT_PASSWORD: aF2fN9rV7fbP8mG5
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-u2385522_pp_database}
+      MYSQL_USER: ${MYSQL_USER:-u2385522_pp_db}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-aF2fN9rV7fbP8mG5}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-aF2fN9rV7fbP8mG5}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/init_tariffs_simple.sql:/docker-entrypoint-initdb.d/init_tariffs.sql
-    ports:
-      - "3306:3306"
+    expose:
+      - "3306"
+    networks:
+      - app-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: 
@@ -27,16 +30,29 @@ services:
     container_name: valet_backend
     restart: unless-stopped
     environment:
-      - DATABASE_URL=mysql+pymysql://u2385522_pp_db:aF2fN9rV7fbP8mG5@mysql:3306/u2385522_pp_database
-      - SECRET_KEY=your-super-secret-key-change-this-in-production-2024
-      - CORS_ORIGINS=*
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-u2385522_pp_db}:${MYSQL_PASSWORD:-aF2fN9rV7fbP8mG5}@mysql:3306/${MYSQL_DATABASE:-u2385522_pp_database}
+      - SECRET_KEY=${SECRET_KEY:-your-super-secret-key-change-this-in-production-2024}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    volumes:
+      - ./backend/uploads:/app/uploads
+    expose:
+      - "8000"
+    networks:
+      - app-network
     depends_on:
       mysql:
         condition: service_healthy
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend/uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: valet_frontend
+    restart: unless-stopped
+    networks:
+      - app-network
+    depends_on:
+      - backend
 
   nginx:
     image: nginx:alpine
@@ -46,10 +62,20 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./frontend/build:/usr/share/nginx/html
+      - ./nginx2.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/build:/usr/share/nginx/html:ro
+      - ./backend/uploads:/usr/share/nginx/uploads:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    networks:
+      - app-network
     depends_on:
       - backend
+      - frontend
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   mysql_data: 
