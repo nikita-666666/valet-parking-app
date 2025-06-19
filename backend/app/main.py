@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.api.v1.api_router import api_router
 from app.core.config import settings
-
+import os
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -48,4 +49,9 @@ async def health_check():
         "message": "API is working",
         "cors_enabled": True,
         "api_version": "v1"
-    } 
+    }
+
+# Обслуживание статических файлов React (для Railway)
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static/static"), name="static")
+    app.mount("/", StaticFiles(directory="static", html=True), name="frontend") 

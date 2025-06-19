@@ -1,0 +1,51 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+
+# Frontend build
+frontend/node_modules/
+frontend/build/
+frontend/.env*
+
+# Database and logs
+*.log
+*.db
+*.sqlite
+
+# Development files
+.git/
+.vscode/
+.idea/
+*.md
+README.md
+DEMO_GUIDE.md
+DEPLOYMENT.md
+MOBILE_DEBUG.md
+
+# Docker files
+docker-compose.yml
+Dockerfile*
+.dockerignore
+
+# Scripts
+*.bat
+*.ps1
+deploy.sh
+
+# Test files
+test*.html
+mobile-universal-test.html
+test-valet-mobile-auth.html
+
+# Uploads (will be recreated)
+backend/uploads/ 
