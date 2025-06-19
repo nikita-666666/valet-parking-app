@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простой тест API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Простой тест API</h1>
+        
+        <button onclick="showInfo()">Показать информацию</button>
+        <button onclick="testBackendDirect()">Тест Backend (порт 8000)</button>
+        <button onclick="testAPIProxy()">Тест API через Nginx</button>
+        <button onclick="testLogin()">Тест авторизации</button>
+        <button onclick="clearResult()">Очистить</button>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+        }
+        
+        function clearResult() {
+            document.getElementById('result').style.display = 'none';
+        }
+        
+        function showInfo() {
+            const info = `
+Информация о подключении:
+========================
+URL: ${window.location.href}
+Протокол: ${window.location.protocol}
+Хост: ${window.location.hostname}
+Порт: ${window.location.port || 'по умолчанию'}
+User Agent: ${navigator.userAgent}
+Время: ${new Date().toLocaleString()}
+
+Будем тестировать:
+- Backend напрямую: ${window.location.protocol}//${window.location.hostname}:8000
+- API через Nginx: ${window.location.protocol}//${window.location.hostname}/api/v1
+            `.trim();
+            showResult(info, 'info');
+        }
+        
+        async function testBackendDirect() {
+            const url = `${window.location.protocol}//${window.location.hostname}:8000`;
+            try {
+                showResult('Тестируем backend напрямую...', 'info');
+                const response = await fetch(url);
+                const text = await response.text();
+                showResult(`✅ Backend доступен!\nСтатус: ${response.status}\nОтвет: ${text}`, 'success');
+            } catch (error) {
+                showResult(`❌ Backend недоступен!\nОшибка: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAPIProxy() {
+            const url = `${window.location.protocol}//${window.location.hostname}/api/v1`;
+            try {
+                showResult('Тестируем API через nginx...', 'info');
+                const response = await fetch(url);
+                const text = await response.text();
+                showResult(`✅ API через nginx доступен!\nСтатус: ${response.status}\nОтвет: ${text}`, 'success');
+            } catch (error) {
+                showResult(`❌ API через nginx недоступен!\nОшибка: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testLogin() {
+            const url = `${window.location.protocol}//${window.location.hostname}/api/v1/valet-auth/login`;
+            try {
+                showResult('Тестируем авторизацию...', 'info');
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'valet@test.com',
+                        password: 'valet123'
+                    })
+                });
+                
+                const text = await response.text();
+                
+                if (response.ok) {
+                    showResult(`✅ Авторизация успешна!\nСтатус: ${response.status}\nОтвет: ${text}`, 'success');
+                } else {
+                    showResult(`❌ Ошибка авторизации!\nСтатус: ${response.status}\nОтвет: ${text}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Ошибка при авторизации!\nОшибка: ${error.message}`, 'error');
+            }
+        }
+        
+        // Автоматически показываем информацию при загрузке
+        window.onload = function() {
+            showInfo();
+        };
+    </script>
+</body>
+</html> 

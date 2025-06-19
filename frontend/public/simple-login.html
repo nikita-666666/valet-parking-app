@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Простой вход в систему</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .logo p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="email"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .login-btn:disabled {
+            background: #ccc;
+            transform: none;
+            cursor: not-allowed;
+        }
+        
+        .error {
+            background: #fff5f5;
+            color: #e53e3e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e53e3e;
+        }
+        
+        .success {
+            background: #f0fff4;
+            color: #38a169;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #38a169;
+        }
+        
+        .demo-info {
+            background: #fffbeb;
+            color: #d69e2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #d69e2e;
+            font-size: 14px;
+        }
+        
+        .dashboard-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .dashboard-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo">
+            <h1>🚗 Valet Система</h1>
+            <p>Вход для администраторов</p>
+        </div>
+        
+        <div class="demo-info">
+            📱 <strong>Демо данные:</strong><br>
+            Email: admin@test.com<br>
+            Пароль: valet123
+        </div>
+        
+        <div id="message"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email адрес</label>
+                <input type="email" id="email" value="admin@test.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" value="valet123" required>
+            </div>
+            
+            <button type="submit" class="login-btn" id="loginBtn">
+                Войти в систему
+            </button>
+        </form>
+        
+        <div id="userInfo" style="display: none;">
+            <div class="success">
+                ✅ Успешная авторизация!
+            </div>
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <strong>Информация о пользователе:</strong>
+                <div id="userDetails"></div>
+            </div>
+            <div class="dashboard-link">
+                <a href="/" onclick="goToDashboard()">🏠 Перейти к главной странице</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.251.30:8000';
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+        }
+        
+        function clearMessage() {
+            document.getElementById('message').innerHTML = '';
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            
+            clearMessage();
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading"></span>Входим...';
+            
+            try {
+                console.log('🔄 Начинаем авторизацию...');
+                console.log('📍 API URL:', `${API_BASE}/api/v1/auth/login`);
+                console.log('📧 Email:', email);
+                console.log('🔒 Password length:', password.length);
+                
+                showMessage(`🔄 Подключаемся к ${API_BASE}...`, 'success');
+                
+                // Сначала проверим доступность API
+                console.log('🔍 Проверяем доступность API...');
+                
+                const healthCheck = await fetch(`${API_BASE}/health`, {
+                    method: 'GET',
+                    cache: 'no-cache'
+                });
+                
+                console.log('💚 Health check статус:', healthCheck.status);
+                showMessage(`💚 Сервер доступен (${healthCheck.status})`, 'success');
+                
+                const formData = new URLSearchParams();
+                formData.append('username', email);
+                formData.append('password', password);
+                
+                console.log('📤 Отправляем запрос авторизации...');
+                showMessage('📤 Отправляем данные авторизации...', 'success');
+                
+                const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData,
+                    cache: 'no-cache'
+                });
+                
+                console.log('📊 Статус ответа:', response.status);
+                console.log('📊 Headers:', [...response.headers.entries()]);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Авторизация успешна');
+                    
+                    // Сохраняем токен
+                    localStorage.setItem('token', data.access_token);
+                    
+                    showMessage('👤 Получаем информацию о пользователе...', 'success');
+                    
+                    // Получаем информацию о пользователе
+                    const userResponse = await fetch(`${API_BASE}/api/v1/auth/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${data.access_token}`
+                        },
+                        cache: 'no-cache'
+                    });
+                    
+                    if (userResponse.ok) {
+                        const userInfo = await userResponse.json();
+                        console.log('👤 Информация о пользователе получена:', userInfo);
+                        
+                        document.getElementById('userDetails').innerHTML = `
+                            <p><strong>👤 Имя:</strong> ${userInfo.first_name} ${userInfo.last_name}</p>
+                            <p><strong>📧 Email:</strong> ${userInfo.email}</p>
+                            <p><strong>🎭 Роль:</strong> ${userInfo.role.name}</p>
+                            <p><strong>🔄 Статус:</strong> ${userInfo.is_active ? 'Активен' : 'Неактивен'}</p>
+                        `;
+                        
+                        document.getElementById('loginForm').style.display = 'none';
+                        document.getElementById('userInfo').style.display = 'block';
+                        
+                        // Автоматический переход через 3 секунды
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 3000);
+                        
+                    } else {
+                        const errorText = await userResponse.text();
+                        console.error('❌ Ошибка получения профиля:', errorText);
+                        showMessage(`❌ Ошибка получения профиля: ${userResponse.status}`, 'error');
+                    }
+                    
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ Ошибка авторизации:', errorText);
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        showMessage(`❌ Ошибка входа: ${errorData.detail}`, 'error');
+                    } catch {
+                        showMessage(`❌ Ошибка входа: ${response.status} ${response.statusText}`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('💥 Полная ошибка:', error);
+                console.error('💥 Тип ошибки:', error.name);
+                console.error('💥 Сообщение:', error.message);
+                console.error('💥 Stack:', error.stack);
+                
+                let errorMessage = `💥 Ошибка сети: ${error.message}`;
+                
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    errorMessage = `🚫 Не удается подключиться к серверу ${API_BASE}. Проверьте:
+                        <br>• Доступность сервера
+                        <br>• Настройки CORS
+                        <br>• Сетевое подключение`;
+                }
+                
+                showMessage(errorMessage, 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Войти в систему';
+            }
+        });
+        
+        function goToDashboard() {
+            window.location.href = '/';
+        }
+        
+        // Проверяем, есть ли уже токен
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                showMessage('ℹ️ Вы уже авторизованы. Переадресуем на главную страницу...', 'success');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html> 

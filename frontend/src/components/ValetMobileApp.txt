@@ -1,0 +1,474 @@
+при запросе автомобиля клиентом валет сначала принимает запрос, потом статус "начать подачу" с подтверждением фото, потом "подать" тоже с подтверждением фото, эти все логи должны отражаться со временем 
+
+---
+
+**Cursor**
+
+Отличная идея! Давайте добавим более детализированный процесс подачи автомобиля с фотофиксацией каждого этапа. Сначала обновим статусы и логику:
+
+```javascript
+    const [parkingData, setParkingData] = useState({
+        parking_spot: '',
+        photos: [],
+        notes: ''
+    });
+    const [showReturnStartModal, setShowReturnStartModal] = useState(false);
+    const [showReturnDeliveryModal, setShowReturnDeliveryModal] = useState(false);
+    const [returnData, setReturnData] = useState({
+        photos: [],
+        notes: ''
+    });
+```
+
+Теперь обновлю функцию updateSessionStatus для обработки новых этапов подачи:
+
+```javascript
+    // Обновление статуса сессии
+    const updateSessionStatus = async (sessionId, newStatus) => {
+        try {
+            // Если парковка - показываем модальное окно для ввода данных
+            if (newStatus === 'parked') {
+                const session = activeSessions.find(s => s.id === sessionId);
+                setCurrentSession(session);
+                setParkingData({
+                    parking_spot: '',
+                    photos: [],
+                    notes: ''
+                });
+                setShowParkingModal(true);
+                return;
+            }
+            
+            // Если начало подачи - показываем модальное окно для фото с парковки
+            if (newStatus === 'return_started') {
+                const session = activeSessions.find(s => s.id === sessionId);
+                setCurrentSession(session);
+                setReturnData({
+                    photos: [],
+                    notes: ''
+                });
+                setShowReturnStartModal(true);
+                return;
+            }
+            
+            // Если подача к клиенту - показываем модальное окно для фото подачи
+            if (newStatus === 'return_delivering') {
+                const session = activeSessions.find(s => s.id === sessionId);
+                setCurrentSession(session);
+                setReturnData({
+                    photos: [],
+                    notes: ''
+                });
+                setShowReturnDeliveryModal(true);
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/valet-sessions/${sessionId}`, 
+                { status: newStatus },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
+            loadActiveSessions();
+            showAlert('Статус обновлен!', 'success');
+        } catch (error) {
+            console.error('Ошибка обновления статуса:', error);
+            showAlert('Ошибка обновления статуса', 'danger');
+        }
+    };
+```
+
+Теперь добавлю функции для подтверждения этапов подачи:
+
+```javascript
+    };
+
+    // Подтверждение начала подачи с фото с парковки
+    const confirmReturnStart = async () => {
+        if (returnData.photos.length < 2) {
+            showAlert('Добавьте минимум 2 фото автомобиля на парковке перед подачей!', 'warning');
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/valet-sessions/${currentSession.id}`, 
+                { 
+                    status: 'return_started',
+                    notes: returnData.notes
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
+            
+            setShowReturnStartModal(false);
+            setCurrentSession(null);
+            setReturnData({ photos: [], notes: '' });
+            
+            loadActiveSessions();
+            showAlert('Начата подача автомобиля!', 'success');
+        } catch (error) {
+            console.error('Ошибка начала подачи:', error);
+            showAlert('Ошибка подтверждения начала подачи', 'danger');
+        }
+    };
+
+    // Подтверждение подачи к клиенту с фото
+    const confirmReturnDelivery = async () => {
+        if (returnData.photos.length < 1) {
+            showAlert('Добавьте фото подачи автомобиля клиенту!', 'warning');
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/valet-sessions/${currentSession.id}`, 
+                { 
+                    status: 'return_delivering',
+                    notes: returnData.notes
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
+            
+            setShowReturnDeliveryModal(false);
+            setCurrentSession(null);
+            setReturnData({ photos: [], notes: '' });
+            
+            loadActiveSessions();
+            showAlert('Автомобиль подается клиенту!', 'success');
+        } catch (error) {
+            console.error('Ошибка подачи:', error);
+            showAlert('Ошибка подтверждения подачи', 'danger');
+        }
+    };
+```
+
+Теперь нужно обновить экран запросов на подачу, чтобы показать новые кнопки для детализированного процесса:
+
+```javascript
+                                    <div className="text-end">
+                                        {session.status === 'return_requested' && (
+                                            <Button 
+                                                variant="warning" 
+                                                size="sm"
+                                                onClick={() => updateSessionStatus(session.id, 'return_accepted')}
+                                                style={{fontSize: '12px', padding: '8px 15px'}}
+                                            >
+                                                Принять запрос
+                                            </Button>
+                                        )}
+                                        {session.status === 'return_accepted' && (
+                                            <Button 
+                                                variant="info" 
+                                                size="sm"
+                                                onClick={() => updateSessionStatus(session.id, 'return_started')}
+                                                style={{fontSize: '12px', padding: '8px 15px'}}
+                                            >
+                                                Начать подачу
+                                            </Button>
+                                        )}
+                                        {session.status === 'return_started' && (
+                                            <Button 
+                                                variant="primary" 
+                                                size="sm"
+                                                onClick={() => updateSessionStatus(session.id, 'return_delivering')}
+                                                style={{fontSize: '12px', padding: '8px 15px'}}
+                                            >
+                                                Подать к клиенту
+                                            </Button>
+                                        )}
+                                        {session.status === 'return_delivering' && (
+                                            <Button 
+                                                variant="success" 
+                                                size="sm"
+                                                onClick={() => updateSessionStatus(session.id, 'completed')}
+                                                style={{fontSize: '12px', padding: '8px 15px'}}
+                                            >
+                                                Подтвердить выдачу
+                                            </Button>
+                                        )}
+```
+
+Теперь нужно обновить фильтр запросов, чтобы включить новые статусы:
+
+```javascript
+                                {activeSessions.filter(s => ['return_requested', 'return_accepted', 'return_started', 'return_delivering'].includes(s.status)).length > 0 ? (
+                                    activeSessions.filter(s => ['return_requested', 'return_accepted', 'return_started', 'return_delivering'].includes(s.status)).map((session) => (
+```
+
+Теперь обновлю счетчик запросов на главном экране:
+
+```javascript
+                                <h5 className="mb-0">Запросы на подачу: 
+                                    <Badge bg={activeSessions.filter(s => ['return_requested', 'return_accepted', 'return_started', 'return_delivering'].includes(s.status)).length > 0 ? 'warning' : 'secondary'} className="ms-2">
+                                        {activeSessions.filter(s => ['return_requested', 'return_accepted', 'return_started', 'return_delivering'].includes(s.status)).length}
+                                    </Badge>
+                                </h5>
+```
+
+Теперь добавлю модальные окна для начала подачи и подачи к клиенту. Добавлю их после модального окна парковки:
+
+```javascript
+                </Modal.Footer>
+            </Modal>
+
+            {/* Модальное окно начала подачи автомобиля */}
+            <Modal show={showReturnStartModal} onHide={() => setShowReturnStartModal(false)} size="lg">
+                <Modal.Header closeButton className="bg-info text-white">
+                    <Modal.Title>
+                        <FontAwesomeIcon icon={faCar} className="me-2" />
+                        Начало подачи автомобиля
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{maxHeight: '70vh', overflowY: 'auto'}}>
+                    {currentSession && (
+                        <>
+                            <div className="mb-3 p-3 bg-light rounded">
+                                <h6 className="text-info mb-2">Автомобиль для подачи:</h6>
+                                <div className="d-flex align-items-center">
+                                    <FontAwesomeIcon icon={faCar} size="2x" className="text-primary me-3" />
+                                    <div>
+                                        <div className="fw-bold">{currentSession.car_number}</div>
+                                        <div className="text-muted">{currentSession.car_model}</div>
+                                        <div className="small text-muted">Карта: {currentSession.client_card_number}</div>
+                                        <div className="small text-success">Место: {currentSession.parking_spot || 'Не указано'}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Фото автомобиля на парковке перед подачей */}
+                            <Form.Group className="mb-3">
+                                <Form.Label className="fw-bold">
+                                    <FontAwesomeIcon icon={faCamera} className="me-2" />
+                                    Фото автомобиля на парковке (минимум 2)
+                                </Form.Label>
+                                <div className="d-flex flex-wrap gap-2 mb-2">
+                                    {[1, 2, 3].map((num) => (
+                                        <div
+                                            key={num}
+                                            style={{
+                                                width: '80px',
+                                                height: '80px',
+                                                border: '2px dashed #17a2b8',
+                                                borderRadius: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                backgroundColor: '#f8f9fa',
+                                                position: 'relative'
+                                            }}
+                                            onClick={() => {
+                                                const newPhotos = [...returnData.photos];
+                                                newPhotos[num - 1] = `return_start_photo_${num}_${Date.now()}`;
+                                                setReturnData({...returnData, photos: newPhotos});
+                                            }}
+                                        >
+                                            {returnData.photos[num - 1] ? (
+                                                <FontAwesomeIcon icon={faCheck} size="2x" className="text-success" />
+                                            ) : (
+                                                <FontAwesomeIcon icon={faCamera} size="2x" className="text-muted" />
+                                            )}
+                                            {num <= 2 && (
+                                                <div 
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '-8px',
+                                                        right: '-8px',
+                                                        backgroundColor: '#dc3545',
+                                                        color: 'white',
+                                                        borderRadius: '50%',
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '12px'
+                                                    }}
+                                                >
+                                                    !
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <small className="text-muted">
+                                    Сделайте фото автомобиля перед тем как забрать с парковки.
+                                </small>
+                                <div className="mt-2">
+                                    <Badge bg={returnData.photos.filter(p => p).length >= 2 ? 'success' : 'danger'}>
+                                        Загружено: {returnData.photos.filter(p => p).length} из 2 обязательных
+                                    </Badge>
+                                </div>
+                            </Form.Group>
+
+                            {/* Заметки */}
+                            <Form.Group className="mb-3">
+                                <Form.Label>Заметки</Form.Label>
+                                <Form.Control
+                                    as="textarea"
+                                    rows={2}
+                                    value={returnData.notes}
+                                    onChange={(e) => setReturnData({...returnData, notes: e.target.value})}
+                                    placeholder="Состояние автомобиля при забирании с парковки..."
+                                    style={mobileStyles.formControl}
+                                />
+                            </Form.Group>
+                        </>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button 
+                        variant="info" 
+                        onClick={confirmReturnStart}
+                        disabled={returnData.photos.filter(p => p).length < 2}
+                        style={{borderRadius: '25px'}}
+                    >
+                        <FontAwesomeIcon icon={faCar} className="me-2" />
+                        Начать подачу
+                    </Button>
+                    <Button 
+                        variant="outline-secondary" 
+                        onClick={() => setShowReturnStartModal(false)}
+                        style={{borderRadius: '25px'}}
+                    >
+                        Отмена
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* Модальное окно подачи к клиенту */}
+            <Modal show={showReturnDeliveryModal} onHide={() => setShowReturnDeliveryModal(false)} size="lg">
+                <Modal.Header closeButton className="bg-primary text-white">
+                    <Modal.Title>
+                        <FontAwesomeIcon icon={faHandPaper} className="me-2" />
+                        Подача автомобиля клиенту
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{maxHeight: '70vh', overflowY: 'auto'}}>
+                    {currentSession && (
+                        <>
+                            <div className="mb-3 p-3 bg-light rounded">
+                                <h6 className="text-primary mb-2">Подача клиенту:</h6>
+                                <div className="d-flex align-items-center">
+                                    <FontAwesomeIcon icon={faCar} size="2x" className="text-primary me-3" />
+                                    <div>
+                                        <div className="fw-bold">{currentSession.car_number}</div>
+                                        <div className="text-muted">{currentSession.car_model}</div>
+                                        <div className="small text-muted">Карта: {currentSession.client_card_number}</div>
+                                        <div className="small text-muted">Клиент: {currentSession.client_name}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Фото подачи клиенту */}
+                            <Form.Group className="mb-3">
+                                <Form.Label className="fw-bold">
+                                    <FontAwesomeIcon icon={faCamera} className="me-2" />
+                                    Фото подачи автомобиля (минимум 1)
+                                </Form.Label>
+                                <div className="d-flex flex-wrap gap-2 mb-2">
+                                    {[1, 2].map((num) => (
+                                        <div
+                                            key={num}
+                                            style={{
+                                                width: '80px',
+                                                height: '80px',
+                                                border: '2px dashed #007bff',
+                                                borderRadius: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                backgroundColor: '#f8f9fa',
+                                                position: 'relative'
+                                            }}
+                                            onClick={() => {
+                                                const newPhotos = [...returnData.photos];
+                                                newPhotos[num - 1] = `delivery_photo_${num}_${Date.now()}`;
+                                                setReturnData({...returnData, photos: newPhotos});
+                                            }}
+                                        >
+                                            {returnData.photos[num - 1] ? (
+                                                <FontAwesomeIcon icon={faCheck} size="2x" className="text-success" />
+                                            ) : (
+                                                <FontAwesomeIcon icon={faCamera} size="2x" className="text-muted" />
+                                            )}
+                                            {num === 1 && (
+                                                <div 
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '-8px',
+                                                        right: '-8px',
+                                                        backgroundColor: '#dc3545',
+                                                        color: 'white',
+                                                        borderRadius: '50%',
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '12px'
+                                                    }}
+                                                >
+                                                    !
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <small className="text-muted">
+                                    Сделайте фото момента подачи автомобиля клиенту.
+                                </small>
+                                <div className="mt-2">
+                                    <Badge bg={returnData.photos.filter(p => p).length >= 1 ? 'success' : 'danger'}>
+                                        Загружено: {returnData.photos.filter(p => p).length} из 1 обязательного
+                                    </Badge>
+                                </div>
+                            </Form.Group>
+
+                            {/* Заметки */}
+                            <Form.Group className="mb-3">
+                                <Form.Label>Заметки о подаче</Form.Label>
+                                <Form.Control
+                                    as="textarea"
+                                    rows={2}
+                                    value={returnData.notes}
+                                    onChange={(e) => setReturnData({...returnData, notes: e.target.value})}
+                                    placeholder="Особенности подачи, состояние автомобиля при выдаче..."
+                                    style={mobileStyles.formControl}
+                                />
+                            </Form.Group>
+                        </>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button 
+                        variant="primary" 
+                        onClick={confirmReturnDelivery}
+                        disabled={returnData.photos.filter(p => p).length < 1}
+                        style={{borderRadius: '25px'}}
+                    >
+                        <FontAwesomeIcon icon={faHandPaper} className="me-2" />
+                        Подать клиенту
+                    </Button>
+                    <Button 
+                        variant="outline-secondary" 
+                        onClick={() => setShowReturnDeliveryModal(false)}
+                        style={{borderRadius: '25px'}}
+                    >
+                        Отмена
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+```

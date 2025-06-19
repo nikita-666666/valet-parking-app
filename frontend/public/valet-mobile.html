@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>🚗 Valet Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .logo p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="email"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .login-btn:disabled {
+            background: #ccc;
+            transform: none;
+            cursor: not-allowed;
+        }
+        
+        .error {
+            background: #fff5f5;
+            color: #e53e3e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e53e3e;
+        }
+        
+        .success {
+            background: #f0fff4;
+            color: #38a169;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #38a169;
+        }
+        
+        .demo-info {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+            font-size: 14px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .profile-info {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo">
+            <h1>🚗 Valet Mobile</h1>
+            <p>Приложение для валетов</p>
+        </div>
+        
+        <div class="demo-info">
+            📱 <strong>Тестовые данные валета:</strong><br>
+            Email: valet@test.com<br>
+            Пароль: valet123
+        </div>
+        
+        <div id="message"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email адрес</label>
+                <input type="email" id="email" value="valet@test.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" value="valet123" required>
+            </div>
+            
+            <button type="submit" class="login-btn" id="loginBtn">
+                Войти как валет
+            </button>
+        </form>
+        
+        <div id="profileInfo" style="display: none;">
+            <div class="success">
+                ✅ Успешная авторизация валета!
+            </div>
+            <div class="profile-info">
+                <strong>Информация о валете:</strong>
+                <div id="profileDetails"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Используем текущий хост (nginx proxy)
+        const API_BASE = window.location.origin;
+        let authToken = null;
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+        }
+        
+        function clearMessage() {
+            document.getElementById('message').innerHTML = '';
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            
+            clearMessage();
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading"></span>Авторизация...';
+            
+            try {
+                console.log('🔄 Начинаем авторизацию валета...');
+                console.log('📍 API URL:', `${API_BASE}/api/v1/valet-auth/login`);
+                console.log('📧 Email:', email);
+                
+                showMessage(`🔄 Подключаемся к valet API...`, 'success');
+                
+                const response = await fetch(`${API_BASE}/api/v1/valet-auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    }),
+                    cache: 'no-cache'
+                });
+                
+                console.log('📊 Статус ответа:', response.status);
+                console.log('📊 Headers:', [...response.headers.entries()]);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Авторизация валета успешна');
+                    
+                    authToken = data.access_token;
+                    
+                    showMessage('👤 Получаем профиль валета...', 'success');
+                    
+                    // Получаем профиль валета
+                    const profileResponse = await fetch(`${API_BASE}/api/v1/valet-auth/profile`, {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                        cache: 'no-cache'
+                    });
+                    
+                    if (profileResponse.ok) {
+                        const profileInfo = await profileResponse.json();
+                        console.log('👤 Профиль валета получен:', profileInfo);
+                        
+                        document.getElementById('profileDetails').innerHTML = `
+                            <p><strong>👤 Имя:</strong> ${profileInfo.first_name} ${profileInfo.last_name}</p>
+                            <p><strong>📧 Email:</strong> ${profileInfo.email}</p>
+                            <p><strong>🎭 Роль:</strong> ${profileInfo.role ? profileInfo.role.name : 'Валет'}</p>
+                            <p><strong>🔄 Статус:</strong> ${profileInfo.is_active ? 'Активен' : 'Неактивен'}</p>
+                            <p><strong>🆔 ID:</strong> ${profileInfo.id}</p>
+                        `;
+                        
+                        document.getElementById('loginForm').style.display = 'none';
+                        document.getElementById('profileInfo').style.display = 'block';
+                        
+                    } else {
+                        const errorText = await profileResponse.text();
+                        console.error('❌ Ошибка получения профиля валета:', errorText);
+                        showMessage(`❌ Ошибка получения профиля: ${profileResponse.status}`, 'error');
+                    }
+                    
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ Ошибка авторизации валета:', errorText);
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        showMessage(`❌ Ошибка входа: ${errorData.detail}`, 'error');
+                    } catch {
+                        showMessage(`❌ Ошибка входа: ${response.status} ${response.statusText}`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('💥 Полная ошибка:', error);
+                console.error('💥 Тип ошибки:', error.name);
+                console.error('💥 Сообщение:', error.message);
+                
+                let errorMessage = `💥 Ошибка сети: ${error.message}`;
+                
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    errorMessage = `🚫 Не удается подключиться к valet API. Возможные причины:
+                        <br>• Valet endpoints не настроены в nginx
+                        <br>• Backend не доступен
+                        <br>• Проблемы с сетью`;
+                }
+                
+                showMessage(errorMessage, 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Войти как валет';
+            }
+        });
+        
+        // Показываем информацию при загрузке
+        window.addEventListener('load', () => {
+            showMessage(`🌐 Используем valet API: ${API_BASE}/api/v1/valet-auth/*`, 'success');
+        });
+    </script>
+</body>
+</html> 

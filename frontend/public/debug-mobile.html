@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отладка мобильного доступа</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: #f8f9fa;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-bottom: 15px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #6c757d;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .small { font-size: 11px; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Отладка мобильного доступа</h1>
+        
+        <div class="info-box">
+            <strong>Информация о клиенте:</strong><br>
+            IP: <span id="clientIP">Определяется...</span><br>
+            User Agent: <span id="userAgent" class="small"></span><br>
+            Время: <span id="currentTime"></span>
+        </div>
+
+        <button onclick="clearLog()">🗑️ Очистить лог</button>
+        <button onclick="testCORS()">🌐 Тест CORS</button>
+        <button onclick="testAPI()">⚡ Тест API</button>
+        <button onclick="testLogin()">🔐 Тест авторизации</button>
+        <button onclick="testWithCredentials()">🍪 Тест с credentials</button>
+
+        <div id="log" class="log">Лог запросов:\n</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.251.30:8000';
+        let logElement = document.getElementById('log');
+
+        // Инициализация
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('currentTime').textContent = new Date().toLocaleString();
+
+        // Определяем IP
+        fetch('https://api.ipify.org?format=json')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('clientIP').textContent = data.ip;
+                log(`✅ IP определен: ${data.ip}`);
+            })
+            .catch(e => {
+                document.getElementById('clientIP').textContent = 'Ошибка';
+                log(`❌ Ошибка определения IP: ${e.message}`);
+            });
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            logElement.textContent = 'Лог запросов:\n';
+        }
+
+        async function testCORS() {
+            log('🌐 Тестируем CORS...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                log(`✅ CORS OK: статус ${response.status}`);
+                log(`📄 Headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                const data = await response.json();
+                log(`📦 Данные: ${JSON.stringify(data)}`);
+                
+            } catch (error) {
+                log(`❌ CORS ошибка: ${error.message}`);
+                log(`🔍 Stack: ${error.stack}`);
+            }
+        }
+
+        async function testAPI() {
+            log('⚡ Тестируем базовое API...');
+            
+            try {
+                const start = Date.now();
+                
+                const response = await fetch(`${API_BASE}/api/v1/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                const time = Date.now() - start;
+                log(`📊 Время ответа: ${time}ms`);
+                log(`📈 Статус: ${response.status}`);
+                log(`📋 Headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                const text = await response.text();
+                log(`📄 Ответ: ${text}`);
+                
+            } catch (error) {
+                log(`❌ API ошибка: ${error.message}`);
+                log(`🔍 Тип ошибки: ${error.constructor.name}`);
+            }
+        }
+
+        async function testLogin() {
+            log('🔐 Тестируем авторизацию...');
+            
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', 'admin@test.com');
+                formData.append('password', 'valet123');
+                
+                log(`📤 Отправляем данные: ${formData.toString()}`);
+                
+                const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData,
+                    mode: 'cors'
+                });
+                
+                log(`📈 Статус авторизации: ${response.status}`);
+                log(`📋 Response Headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                const text = await response.text();
+                log(`📄 Ответ авторизации: ${text}`);
+                
+                if (response.ok) {
+                    const data = JSON.parse(text);
+                    log(`✅ Токен получен: ${data.access_token.substring(0, 30)}...`);
+                    
+                    // Тестируем с полученным токеном
+                    const profileResponse = await fetch(`${API_BASE}/api/v1/auth/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${data.access_token}`
+                        },
+                        mode: 'cors'
+                    });
+                    
+                    log(`📈 Статус профиля: ${profileResponse.status}`);
+                    const profileText = await profileResponse.text();
+                    log(`👤 Профиль: ${profileText}`);
+                }
+                
+            } catch (error) {
+                log(`❌ Ошибка авторизации: ${error.message}`);
+                log(`🔍 Stack: ${error.stack}`);
+            }
+        }
+
+        async function testWithCredentials() {
+            log('🍪 Тестируем с credentials...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'include'
+                });
+                
+                log(`✅ С credentials OK: статус ${response.status}`);
+                
+            } catch (error) {
+                log(`❌ Ошибка с credentials: ${error.message}`);
+                
+                // Пробуем без credentials
+                try {
+                    const response2 = await fetch(`${API_BASE}/`, {
+                        method: 'GET',
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    
+                    log(`✅ Без credentials OK: статус ${response2.status}`);
+                    
+                } catch (error2) {
+                    log(`❌ И без credentials ошибка: ${error2.message}`);
+                }
+            }
+        }
+
+        // Автоматический тест при загрузке
+        setTimeout(() => {
+            log('🚀 Запуск автоматической диагностики...');
+            testCORS();
+        }, 1000);
+    </script>
+</body>
+</html> 
